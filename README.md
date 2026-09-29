@@ -32,8 +32,8 @@ mkdir -p ~/src
 cd ~/src
 git clone git@github.com:Savage9323/skills-copilot-codespaces-vscode.git savage-agent-skills
 cd savage-agent-skills
-./install.sh
-./doctor.sh
+bash install.sh
+bash doctor.sh
 ```
 
 If HTTPS is preferred:
@@ -54,7 +54,7 @@ OpenCode can then discover each `SKILL.md` globally.
 
 ```bash
 cd ~/src/savage-agent-skills
-./update.sh
+bash update.sh
 ```
 
 ## Project-specific instructions
