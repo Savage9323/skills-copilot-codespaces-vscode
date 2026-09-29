@@ -7,5 +7,5 @@ cd "$ROOT"
 git fetch origin
 git pull --ff-only
 
-./install.sh
-./doctor.sh
+bash "$ROOT/install.sh"
+bash "$ROOT/doctor.sh"
