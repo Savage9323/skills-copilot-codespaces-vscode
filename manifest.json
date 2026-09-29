@@ -1,0 +1,17 @@
+{
+  "name": "savage-agent-skills",
+  "version": "1.0.0",
+  "installTarget": "~/.config/opencode/skills",
+  "skills": [
+    "local-first-project-operations",
+    "project-plan",
+    "build-skill-v1-1",
+    "build-environment-compatibility",
+    "ui-graphics-process",
+    "web-building-execution-v2",
+    "production-infrastructure-launch-architecture",
+    "ai-development-security-orchestrator",
+    "ui-build-orchestrator",
+    "master-product-build-orchestrator"
+  ]
+}
