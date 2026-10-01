@@ -7,7 +7,9 @@ Verify versions live before version-sensitive work.
 ## Primary workstation
 
 - Windows 11 host
-- WSL2 Ubuntu primary development environment
+- CPU: Intel Core i5-12600K (10 cores / 16 logical processors)
+- Host RAM: 31.8 GB (~32 GB)
+- WSL2 Ubuntu primary development environment; default observed WSL memory ceiling is ~15 GiB, consistent with WSL2's default 50% host-memory allocation
 - NVIDIA GeForce RTX 3060 12 GB
 - Docker Desktop with WSL integration
 - Git/GitHub CLI
