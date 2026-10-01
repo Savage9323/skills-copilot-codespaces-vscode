@@ -4,7 +4,7 @@ import path from "node:path"
 import os from "node:os"
 
 const HOME = os.homedir()
-const MEMORY_ROOT = process.env.OPENCODE_MEMORY_DIR || path.join(HOME, ".config", "opencode", "memory")
+const MEMORY_ROOT = process.env.OPENCODE_MEMORY_DIR || path.join(HOME, ".config", "opencode", "memory")\nconst PRIVATE_STATE_ROOT = process.env.SAVAGE_MEMORY_STATE_DIR || path.join(HOME, ".local", "share", "savage-agent-memory")
 const MAX_CANONICAL_CHARS = 22000
 const MAX_RECENT_CHARS = 8000
 const MAX_ITEM_CHARS = 4000
@@ -74,7 +74,7 @@ function collectText(node, out = [], depth = 0) {
 
 async function saveRecentSession(directory, sessionID, ctx) {
   const slug = projectSlug(directory)
-  const dir = path.join(MEMORY_ROOT, "recent", slug)
+  const dir = path.join(PRIVATE_STATE_ROOT, "recent", slug)
   await fs.mkdir(dir, { recursive: true })
 
   const context = await ctx.session.context({ sessionID })
@@ -100,7 +100,7 @@ async function saveRecentSession(directory, sessionID, ctx) {
 
 async function loadRecentSessions(directory, currentSessionID) {
   const slug = projectSlug(directory)
-  const dir = path.join(MEMORY_ROOT, "recent", slug)
+  const dir = path.join(PRIVATE_STATE_ROOT, "recent", slug)
 
   let files = []
   try {
