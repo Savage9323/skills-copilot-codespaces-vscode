@@ -50,6 +50,18 @@ Memory contains:
 
 Live repository, runtime, database, and provider state always outrank memory.
 
+## Automatic shared memory
+
+The installed `savage-auto-memory.js` global OpenCode plugin automatically:
+
+- injects canonical portfolio/toolchain/resource/project memory into each model request
+- preserves canonical memory during OpenCode compaction
+- captures a redacted candidate snapshot on `session.idle`
+- flags pending project memory for automatic reconciliation
+- blocks direct reads of common plaintext secret/private-key files
+
+Candidate session memory remains evidence, not canonical truth. Promotion still follows the authority rules in `memory-orchestrator`.
+
 ## Unified AI memory workflow
 
 The memory pipeline is:
@@ -193,6 +205,39 @@ opencode mcp list
 ```
 
 If Supabase shows that authentication is needed, start OpenCode and authenticate the server from `/mcps`.
+
+## Secret vault
+
+Secrets are intentionally separate from AI memory.
+
+Recommended long-term free setup:
+
+- Bitwarden Password Manager for human logins/passwords
+- Bitwarden Secrets Manager for API keys, database credentials, deployment tokens, and other machine secrets
+- a project-scoped read-only Bitwarden machine account for OpenCode
+
+Initialize the local non-secret configuration:
+
+```bash
+cd ~/src/savage-agent-skills
+bash scripts/setup-bitwarden-secrets.sh
+```
+
+After Bitwarden account/project/machine-account setup and after loading `BWS_ACCESS_TOKEN` directly into your terminal:
+
+```bash
+bash scripts/vault-doctor.sh
+```
+
+Run a trusted command with project secrets injected without putting them in memory:
+
+```bash
+bash scripts/vault-run.sh student-benefits-intelligence -- pnpm run some-command
+```
+
+Only logical names and vault references belong in memory. Secret values never do.
+
+See `secrets/README.md` and the `secret-vault` skill.
 
 ## Update
 

@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET="${OPENCODE_SKILLS_DIR:-$HOME/.config/opencode/skills}"
 MEMORY_TARGET="${OPENCODE_MEMORY_DIR:-$HOME/.config/opencode/memory}"
+PLUGIN_TARGET="${OPENCODE_PLUGIN_DIR:-$HOME/.config/opencode/plugins}"
 GLOBAL_AGENTS="$HOME/.config/opencode/AGENTS.md"
 fail=0
 count=0
@@ -65,6 +66,12 @@ for required in PORTFOLIO.md TOOLCHAIN.md RESOURCES.md SCHEMA.md HANDOFF_TEMPLAT
     echo "WARN: memory/$required unavailable"
   fi
 done
+
+if [ -f "$PLUGIN_TARGET/savage-auto-memory.js" ]; then
+  echo "PASS: savage-auto-memory plugin installed"
+else
+  echo "WARN: savage-auto-memory plugin not installed"
+fi
 
 if [ -f "$GLOBAL_AGENTS" ] && grep -Fq '<!-- SAVAGE_SHARED_AGENT_START -->' "$GLOBAL_AGENTS"; then
   echo "PASS: global AGENTS shared block installed"

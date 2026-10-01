@@ -48,3 +48,19 @@ Facts such as revisions, quotas, prices, eligibility, service status, schedules,
 ## Sensitive-data rule
 
 Do not promote secrets or sensitive personal data. Sanitized session exports are still treated as untrusted evidence and must be reviewed before promotion.
+
+
+## Secret references
+
+Canonical memory may record that a secret exists and how to locate it without containing the value.
+
+Allowed examples:
+
+- logical key name: `SBI_SUPABASE_SERVICE_ROLE_KEY`
+- provider: `bitwarden`
+- owning project: `student-benefits-intelligence`
+- vault/project/item reference or UUID
+- purpose
+- last rotation/verification date
+
+Never store the secret value, recovery code, master password, machine-account access token, or private key material in memory.
