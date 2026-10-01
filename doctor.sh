@@ -3,6 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET="${OPENCODE_SKILLS_DIR:-$HOME/.config/opencode/skills}"
+MEMORY_TARGET="${OPENCODE_MEMORY_DIR:-$HOME/.config/opencode/memory}"
+GLOBAL_AGENTS="$HOME/.config/opencode/AGENTS.md"
 fail=0
 count=0
 
@@ -49,6 +51,26 @@ for skill_dir in "$ROOT"/skills/*; do
     echo "WARN: $name not linked into $TARGET"
   fi
 done
+
+if [ -L "$MEMORY_TARGET" ]; then
+  echo "PASS: shared memory installed"
+else
+  echo "WARN: shared memory not linked into $MEMORY_TARGET"
+fi
+
+for required in PORTFOLIO.md TOOLCHAIN.md RESOURCES.md; do
+  if [ -f "$MEMORY_TARGET/$required" ]; then
+    echo "PASS: memory/$required"
+  else
+    echo "WARN: memory/$required unavailable"
+  fi
+done
+
+if [ -f "$GLOBAL_AGENTS" ] && grep -Fq '<!-- SAVAGE_SHARED_AGENT_START -->' "$GLOBAL_AGENTS"; then
+  echo "PASS: global AGENTS shared block installed"
+else
+  echo "WARN: global AGENTS shared block not installed"
+fi
 
 echo
 echo "Skills checked: $count"
