@@ -48,11 +48,19 @@ ln -sfn "$MEMORY_SOURCE" "$MEMORY_TARGET"
 echo "INSTALLED MEMORY: $MEMORY_TARGET -> $MEMORY_SOURCE"
 
 plugin_count=0
-for plugin in "$PLUGIN_SOURCE"/*.js "$PLUGIN_SOURCE"/*.ts; do
-  [ -f "$plugin" ] || continue
-  name="$(basename "$plugin")"
-  cp "$plugin" "$PLUGIN_TARGET/$name"
-  chmod 600 "$PLUGIN_TARGET/$name"
+
+# Remove obsolete V1 flat plugin if present.
+rm -f "$PLUGIN_TARGET/savage-auto-memory.js"
+
+for plugin_dir in "$PLUGIN_SOURCE"/*; do
+  [ -d "$plugin_dir" ] || continue
+  name="$(basename "$plugin_dir")"
+  dest="$PLUGIN_TARGET/$name"
+
+  rm -rf "$dest"
+  mkdir -p "$dest"
+  cp -a "$plugin_dir/." "$dest/"
+  find "$dest" -type f -exec chmod 600 {} +
   echo "INSTALLED PLUGIN: $name"
   plugin_count=$((plugin_count + 1))
 done
