@@ -34,6 +34,10 @@ function sanitize(value, depth = 0) {
       result[key] = "[REDACTED]"
       continue
     }
+    if (/^(stdout|stderr|responseBody)$/i.test(key)) {
+      result[key] = "[OMITTED_FROM_MEMORY]"
+      continue
+    }
     result[key] = sanitize(item, depth + 1)
   }
   return result
@@ -121,7 +125,11 @@ export const SavageAutoMemoryPlugin = async ({ client, directory }) => {
     },
 
     event: async ({ event }) => {
-      if (event.type !== "session.idle") return
+      const idleEvent =
+        event.type === "session.idle" ||
+        (event.type === "session.status" && event?.properties?.status?.type === "idle")
+      if (!idleEvent) return
+
       const sessionID = event?.properties?.sessionID
       if (!sessionID) return
 
