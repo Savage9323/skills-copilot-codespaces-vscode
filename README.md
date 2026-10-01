@@ -52,15 +52,30 @@ Live repository, runtime, database, and provider state always outrank memory.
 
 ## Automatic shared memory
 
-The installed `savage-auto-memory.js` global OpenCode plugin automatically:
+The installed `savage-auto-memory` OpenCode V2 global plugin automatically:
 
 - injects canonical portfolio/toolchain/resource/project memory into each model request
 - preserves canonical memory during OpenCode compaction
-- captures a redacted candidate snapshot on `session.idle`
+- captures a redacted recent-conversation recollection on `session.idle`
+- injects a bounded amount of recent same-project conversation memory into new sessions
 - flags pending project memory for automatic reconciliation
 - blocks direct reads of common plaintext secret/private-key files
 
-Candidate session memory remains evidence, not canonical truth. Promotion still follows the authority rules in `memory-orchestrator`.
+Recent-conversation memory and candidate session memory remain context/evidence, not canonical truth. Promotion still follows the authority rules in `memory-orchestrator`.
+
+OpenCode's full session transcript is still session-scoped. To resume the exact last conversation rather than starting a new session, use:
+
+```bash
+opencode run --continue "continue"
+# or
+opencode mini --continue
+```
+
+To verify automatic recent-conversation capture for a project:
+
+```bash
+bash scripts/memory-recent.sh student-benefits-intelligence
+```
 
 ## Unified AI memory workflow
 
