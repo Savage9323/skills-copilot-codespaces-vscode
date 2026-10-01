@@ -17,13 +17,20 @@ for skill_dir in "$SOURCE"/*; do
   [ -f "$skill_dir/SKILL.md" ] || { echo "SKIP: $name has no SKILL.md"; continue; }
 
   dest="$TARGET/$name"
-  if [ -e "$dest" ] && [ ! -L "$dest" ]; then
+
+  if [ -L "$dest" ]; then
+    rm "$dest"
+  elif [ -e "$dest" ] && [ ! -f "$dest/.savage-managed" ]; then
     backup="$dest.backup-$(date +%Y%m%d%H%M%S)"
     echo "BACKUP: $dest -> $backup"
     mv "$dest" "$backup"
+  elif [ -d "$dest" ] && [ -f "$dest/.savage-managed" ]; then
+    rm -rf "$dest"
   fi
 
-  ln -sfn "$skill_dir" "$dest"
+  mkdir -p "$dest"
+  cp -a "$skill_dir/." "$dest/"
+  touch "$dest/.savage-managed"
   echo "INSTALLED SKILL: $name"
   installed=$((installed + 1))
 done
@@ -43,4 +50,4 @@ echo
 echo "Installed $installed skills into $TARGET"
 echo "Shared memory linked at $MEMORY_TARGET"
 echo "Global instructions updated at $HOME/.config/opencode/AGENTS.md"
-echo "Restart OpenCode so it refreshes skills and instructions."
+echo "Restart or reload OpenCode so it refreshes skills and instructions."
