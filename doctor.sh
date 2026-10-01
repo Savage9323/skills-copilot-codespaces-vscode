@@ -67,10 +67,10 @@ for required in PORTFOLIO.md TOOLCHAIN.md RESOURCES.md SCHEMA.md HANDOFF_TEMPLAT
   fi
 done
 
-if [ -f "$PLUGIN_TARGET/savage-auto-memory.js" ]; then
-  echo "PASS: savage-auto-memory plugin installed"
+if [ -f "$PLUGIN_TARGET/savage-auto-memory/index.js" ]; then
+  echo "PASS: savage-auto-memory V2 plugin installed"
 else
-  echo "WARN: savage-auto-memory plugin not installed"
+  echo "WARN: savage-auto-memory V2 plugin not installed"
 fi
 
 if [ -f "$GLOBAL_AGENTS" ] && grep -Fq '<!-- SAVAGE_SHARED_AGENT_START -->' "$GLOBAL_AGENTS"; then
