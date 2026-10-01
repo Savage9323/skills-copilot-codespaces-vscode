@@ -4,8 +4,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE="$ROOT/skills"
 TARGET="${OPENCODE_SKILLS_DIR:-$HOME/.config/opencode/skills}"
+MEMORY_SOURCE="$ROOT/memory"
+MEMORY_TARGET="${OPENCODE_MEMORY_DIR:-$HOME/.config/opencode/memory}"
 
 mkdir -p "$TARGET"
+mkdir -p "$(dirname "$MEMORY_TARGET")"
 
 installed=0
 for skill_dir in "$SOURCE"/*; do
@@ -21,10 +24,23 @@ for skill_dir in "$SOURCE"/*; do
   fi
 
   ln -sfn "$skill_dir" "$dest"
-  echo "INSTALLED: $name"
+  echo "INSTALLED SKILL: $name"
   installed=$((installed + 1))
 done
 
+if [ -e "$MEMORY_TARGET" ] && [ ! -L "$MEMORY_TARGET" ]; then
+  backup="$MEMORY_TARGET.backup-$(date +%Y%m%d%H%M%S)"
+  echo "BACKUP: $MEMORY_TARGET -> $backup"
+  mv "$MEMORY_TARGET" "$backup"
+fi
+
+ln -sfn "$MEMORY_SOURCE" "$MEMORY_TARGET"
+echo "INSTALLED MEMORY: $MEMORY_TARGET -> $MEMORY_SOURCE"
+
+bash "$ROOT/install-global-instructions.sh"
+
 echo
 echo "Installed $installed skills into $TARGET"
-echo "Restart OpenCode so it refreshes discovered skills."
+echo "Shared memory linked at $MEMORY_TARGET"
+echo "Global instructions updated at $HOME/.config/opencode/AGENTS.md"
+echo "Restart OpenCode so it refreshes skills and instructions."
