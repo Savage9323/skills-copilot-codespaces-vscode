@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MEMORY="${OPENCODE_MEMORY_DIR:-$ROOT/memory}"
+STATE_ROOT="${SAVAGE_MEMORY_STATE_DIR:-$HOME/.local/share/savage-agent-memory}"
 PROJECT="${1:-}"
 
 if [ -z "$PROJECT" ]; then
@@ -10,11 +9,11 @@ if [ -z "$PROJECT" ]; then
   exit 2
 fi
 
-DIR="$MEMORY/recent/$PROJECT"
+DIR="$STATE_ROOT/recent/$PROJECT"
 
 echo "== Recent OpenCode memory =="
 echo "Project: $PROJECT"
-echo "Directory: $DIR"
+echo "Private state: $DIR"
 echo
 
 if [ ! -d "$DIR" ]; then

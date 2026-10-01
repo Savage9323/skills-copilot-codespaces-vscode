@@ -71,7 +71,7 @@ opencode run --continue "continue"
 opencode mini --continue
 ```
 
-To verify automatic recent-conversation capture for a project:
+Automatic recent-conversation recollections are stored privately under `~/.local/share/savage-agent-memory/recent/` rather than in Git. To verify capture for a project:
 
 ```bash
 bash scripts/memory-recent.sh student-benefits-intelligence
