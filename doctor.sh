@@ -45,20 +45,20 @@ for skill_dir in "$ROOT"/skills/*; do
     continue
   fi
 
-  if [ -L "$TARGET/$name" ]; then
+  if [ -f "$TARGET/$name/SKILL.md" ]; then
     echo "PASS: $name installed"
   else
-    echo "WARN: $name not linked into $TARGET"
+    echo "WARN: $name not installed into $TARGET"
   fi
 done
 
-if [ -L "$MEMORY_TARGET" ]; then
-  echo "PASS: shared memory installed"
+if [ -L "$MEMORY_TARGET" ] || [ -d "$MEMORY_TARGET" ]; then
+  echo "PASS: shared memory available"
 else
-  echo "WARN: shared memory not linked into $MEMORY_TARGET"
+  echo "WARN: shared memory unavailable at $MEMORY_TARGET"
 fi
 
-for required in PORTFOLIO.md TOOLCHAIN.md RESOURCES.md; do
+for required in PORTFOLIO.md TOOLCHAIN.md RESOURCES.md SCHEMA.md HANDOFF_TEMPLATE.md; do
   if [ -f "$MEMORY_TARGET/$required" ]; then
     echo "PASS: memory/$required"
   else
@@ -70,6 +70,10 @@ if [ -f "$GLOBAL_AGENTS" ] && grep -Fq '<!-- SAVAGE_SHARED_AGENT_START -->' "$GL
   echo "PASS: global AGENTS shared block installed"
 else
   echo "WARN: global AGENTS shared block not installed"
+fi
+
+if ! bash "$ROOT/scripts/memory-doctor.sh"; then
+  fail=1
 fi
 
 echo

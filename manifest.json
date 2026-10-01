@@ -1,6 +1,6 @@
 {
   "name": "savage-agent-skills",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "installTarget": "~/.config/opencode/skills",
   "memoryTarget": "~/.config/opencode/memory",
   "skills": [
@@ -15,6 +15,7 @@
     "ui-build-orchestrator",
     "master-product-build-orchestrator",
     "project-memory",
-    "capability-router"
+    "capability-router",
+    "memory-orchestrator"
   ]
 }

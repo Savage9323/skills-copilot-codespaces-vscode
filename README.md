@@ -5,8 +5,9 @@ Central reusable Agent Skills, shared memory, and capability-routing library for
 ## Goals
 
 - one source of truth for reusable project/build/operations skills
-- shared persistent memory across interchangeable Ollama/OpenCode models
-- global OpenCode discovery across all repositories
+- shared persistent memory across interchangeable Ollama/OpenCode/cloud models
+- controlled import of ChatGPT and other AI handoffs
+- global OpenCode discovery across repositories
 - local-first execution and shared cloud-credit discipline
 - least-privilege external capabilities through MCP
 - specialist skills remain separate and composable
@@ -26,6 +27,7 @@ Central reusable Agent Skills, shared memory, and capability-routing library for
 - master-product-build-orchestrator
 - project-memory
 - capability-router
+- memory-orchestrator
 
 ## Shared memory
 
@@ -42,8 +44,88 @@ Memory contains:
 - local toolchain state
 - shared resource policy
 - per-project durable state
+- a candidate-memory inbox
+- conflict records
+- an append-only merge log
 
 Live repository, runtime, database, and provider state always outrank memory.
+
+## Unified AI memory workflow
+
+The memory pipeline is:
+
+```text
+AI/session
+   |
+   v
+sanitized candidate inbox
+   |
+   v
+memory-orchestrator
+   |
+   +--> verify against live/repo state
+   +--> deduplicate
+   +--> preserve conflicts
+   |
+   v
+canonical project memory
+   |
+   v
+all future models
+```
+
+A claim is never promoted merely because multiple models repeated it.
+
+### Capture an OpenCode session
+
+List sessions:
+
+```bash
+opencode session list
+```
+
+Capture one in sanitized form:
+
+```bash
+cd ~/src/savage-agent-skills
+bash scripts/memory-capture-opencode.sh <session-id> student-benefits-intelligence
+```
+
+OpenCode supports sanitized session export, so the raw evidence is retained without intentionally carrying normal transcript secrets into the shared store.
+
+### Import a ChatGPT or other AI handoff
+
+Create a handoff using `memory/HANDOFF_TEMPLATE.md`, then:
+
+```bash
+cd ~/src/savage-agent-skills
+bash scripts/memory-import.sh chatgpt student-benefits-intelligence < handoff.md
+```
+
+Other source examples:
+
+```bash
+bash scripts/memory-import.sh claude project-slug < handoff.md
+bash scripts/memory-import.sh gemini project-slug < handoff.md
+bash scripts/memory-import.sh manual project-slug < notes.md
+```
+
+The import script refuses several high-signal credential/private-key patterns.
+
+### Review pending memory
+
+```bash
+bash scripts/memory-status.sh
+bash scripts/memory-doctor.sh
+```
+
+Generate the standard consolidation prompt:
+
+```bash
+bash scripts/memory-consolidate-prompt.sh student-benefits-intelligence
+```
+
+Paste that prompt into OpenCode. The active model should use `project-memory` + `memory-orchestrator`, verify consequential/volatile facts, then update canonical memory and the merge log.
 
 ## Install for OpenCode
 
@@ -121,7 +203,7 @@ bash update.sh
 
 ## Project-specific instructions
 
-Keep repository-specific requirements in `AGENTS.md` or project-local skills. Do not put secrets, project credentials, or volatile project state in this central library.
+Keep repository-specific requirements in `AGENTS.md` or project-local skills. Do not put secrets, project credentials, sensitive personal information, or volatile project state in canonical shared memory.
 
 ## Resource policy
 
