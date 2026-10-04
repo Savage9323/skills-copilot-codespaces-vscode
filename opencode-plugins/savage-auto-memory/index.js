@@ -112,6 +112,29 @@ function recentFile(directory, sessionID) {
   return path.join(recentDir(directory), sessionID + ".json")
 }
 
+function healthFile() {
+  return path.join(PRIVATE_STATE_ROOT, "plugin-health.json")
+}
+
+async function updateHealth(patch) {
+  await fs.mkdir(PRIVATE_STATE_ROOT, { recursive: true, mode: 0o700 })
+
+  let current = {}
+  try {
+    current = JSON.parse(await fs.readFile(healthFile(), "utf8"))
+  } catch {}
+
+  const next = {
+    ...current,
+    ...patch,
+    updated_at: new Date().toISOString(),
+  }
+
+  const temp = healthFile() + ".tmp"
+  await fs.writeFile(temp, JSON.stringify(next, null, 2) + "\n", { mode: 0o600 })
+  await fs.rename(temp, healthFile())
+}
+
 async function readJournal(directory, sessionID) {
   try {
     return JSON.parse(await fs.readFile(recentFile(directory, sessionID), "utf8"))
@@ -181,7 +204,20 @@ async function loadRecentConversationMemory(directory, currentSessionID) {
   for (const entry of entries.slice(0, 4)) {
     try {
       const data = JSON.parse(await fs.readFile(entry.full, "utf8"))
-      const lines = (data.snippets || [])
+      let snippets = data.snippets || []
+
+      // The prompt hook captures the current user prompt before context assembly.
+      // Do not inject that newest prompt back into the system message for the
+      // same dispatch; keep only earlier same-session turns.
+      if (
+        entry.current &&
+        snippets.length > 0 &&
+        snippets[snippets.length - 1]?.role === "user"
+      ) {
+        snippets = snippets.slice(0, -1)
+      }
+
+      const lines = snippets
         .slice(entry.current ? -24 : -10)
         .map(
           (item) =>
@@ -269,10 +305,51 @@ export default Plugin.define({
     const directory = ctx.location.directory
     const controller = new AbortController()
 
+    await updateHealth({
+      status: "loaded",
+      plugin: "savage-auto-memory",
+      app_version: ctx.app?.version || "unknown",
+      directory,
+      loaded_at: new Date().toISOString(),
+    })
+
+    // Capture the exact user prompt at admission time. OpenCode documents this
+    // hook as running once before durable prompt admission and before model
+    // context assembly, making it the most reliable place for continuity.
+    await ctx.session.hook("prompt", async (event) => {
+      try {
+        await writeJournal(
+          directory,
+          event.sessionID,
+          [{ role: "user", text: event.prompt?.text || "" }],
+          "opencode-v2-prompt-hook",
+        )
+
+        await updateHealth({
+          status: "active",
+          last_prompt_capture_at: new Date().toISOString(),
+          last_prompt_session_id: event.sessionID,
+          last_prompt_project: projectSlug(directory),
+        })
+      } catch (error) {
+        await updateHealth({
+          status: "prompt-capture-error",
+          last_error: String(error),
+        })
+      }
+    })
+
     await ctx.session.hook("context", async (event) => {
       // Inject the journal that existed before this model dispatch.
       const memory = await buildMemoryContext(directory, event.sessionID)
       event.system.push({ type: "text", text: memory })
+
+      await updateHealth({
+        status: "active",
+        last_context_hook_at: new Date().toISOString(),
+        last_context_session_id: event.sessionID,
+        last_context_project: projectSlug(directory),
+      })
 
       // Then persist the current dispatch context. This path runs before the
       // model call and therefore does not depend on OpenCode export or its
