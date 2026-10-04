@@ -56,7 +56,7 @@ The installed `savage-auto-memory` OpenCode V2 global plugin automatically:
 
 - injects canonical portfolio/toolchain/resource/project memory into each model request
 - preserves canonical memory during OpenCode compaction
-- journals the model-dispatch context before every model call, independently of OpenCode session-export persistence
+- captures the exact user prompt in OpenCode V2's prompt-admission hook before durable session admission\n- journals the assembled model-dispatch context as a secondary capture path, independently of session-export persistence
 - supplements the journal on `session.idle` when OpenCode session context is available
 - injects a bounded amount of current/recent same-project conversation memory into later turns and new sessions
 - flags pending project memory for automatic reconciliation
