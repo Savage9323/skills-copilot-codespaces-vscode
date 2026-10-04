@@ -56,12 +56,13 @@ The installed `savage-auto-memory` OpenCode V2 global plugin automatically:
 
 - injects canonical portfolio/toolchain/resource/project memory into each model request
 - preserves canonical memory during OpenCode compaction
-- captures a redacted recent-conversation recollection on `session.idle`
-- injects a bounded amount of recent same-project conversation memory into new sessions
+- journals the model-dispatch context before every model call, independently of OpenCode session-export persistence
+- supplements the journal on `session.idle` when OpenCode session context is available
+- injects a bounded amount of current/recent same-project conversation memory into later turns and new sessions
 - flags pending project memory for automatic reconciliation
 - blocks direct reads of common plaintext secret/private-key files
 
-Recent-conversation memory and candidate session memory remain context/evidence, not canonical truth. Promotion still follows the authority rules in `memory-orchestrator`.
+Recent-conversation memory and candidate session memory remain context/evidence, not canonical truth. The private journal is intentionally independent of OpenCode's SQLite/export path so continuity can survive an OpenCode session-persistence failure. Promotion still follows the authority rules in `memory-orchestrator`.
 
 OpenCode's full session transcript is still session-scoped. To resume the exact last conversation rather than starting a new session, use:
 
