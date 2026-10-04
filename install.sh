@@ -60,6 +60,19 @@ for plugin_dir in "$PLUGIN_SOURCE"/*; do
   rm -rf "$dest"
   mkdir -p "$dest"
   cp -a "$plugin_dir/." "$dest/"
+
+  if [ -f "$dest/package.json" ]; then
+    if command -v npm >/dev/null 2>&1; then
+      (
+        cd "$dest"
+        npm install --omit=dev --ignore-scripts --no-audit --no-fund >/dev/null
+      )
+      echo "INSTALLED PLUGIN DEPENDENCIES: $name"
+    else
+      echo "WARN: npm unavailable; plugin dependencies not installed for $name"
+    fi
+  fi
+
   find "$dest" -type f -exec chmod 600 {} +
   echo "INSTALLED PLUGIN: $name"
   plugin_count=$((plugin_count + 1))

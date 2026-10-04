@@ -69,6 +69,16 @@ done
 
 if [ -f "$PLUGIN_TARGET/savage-auto-memory/index.js" ]; then
   echo "PASS: savage-auto-memory V2 plugin installed"
+
+  if (
+    cd "$PLUGIN_TARGET/savage-auto-memory" &&
+    node --input-type=module -e 'await import("@opencode/plugin")' >/dev/null 2>&1
+  ); then
+    echo "PASS: savage-auto-memory runtime dependency resolves"
+  else
+    echo "FAIL: savage-auto-memory cannot resolve @opencode/plugin"
+    fail=1
+  fi
 else
   echo "WARN: savage-auto-memory V2 plugin not installed"
 fi
