@@ -302,14 +302,34 @@ export default Plugin.define({
   id: "savage-auto-memory",
 
   async setup(ctx) {
-    const directory = ctx.location.directory
     const controller = new AbortController()
+    const sessionDirectories = new Map()
+
+    async function getSessionDirectory(sessionID) {
+      if (sessionDirectories.has(sessionID)) {
+        return sessionDirectories.get(sessionID)
+      }
+
+      try {
+        const response = await ctx.session.get({ sessionID })
+        const session = response?.data ?? response
+        const directory =
+          session?.location?.directory ||
+          session?.directory ||
+          ctx.location.directory
+
+        sessionDirectories.set(sessionID, directory)
+        return directory
+      } catch {
+        return ctx.location.directory
+      }
+    }
 
     await updateHealth({
       status: "loaded",
       plugin: "savage-auto-memory",
       app_version: ctx.app?.version || "unknown",
-      directory,
+      directory: ctx.location.directory,
       loaded_at: new Date().toISOString(),
     })
 
@@ -318,6 +338,8 @@ export default Plugin.define({
     // context assembly, making it the most reliable place for continuity.
     await ctx.session.hook("prompt", async (event) => {
       try {
+        const directory = await getSessionDirectory(event.sessionID)
+
         await writeJournal(
           directory,
           event.sessionID,
@@ -340,6 +362,8 @@ export default Plugin.define({
     })
 
     await ctx.session.hook("context", async (event) => {
+      const directory = await getSessionDirectory(event.sessionID)
+
       // Inject the journal that existed before this model dispatch.
       const memory = await buildMemoryContext(directory, event.sessionID)
       event.system.push({ type: "text", text: memory })
@@ -365,6 +389,7 @@ export default Plugin.define({
     })
 
     await ctx.session.hook("compaction", async (event) => {
+      const directory = await getSessionDirectory(event.sessionID)
       const memory = await buildMemoryContext(directory, event.sessionID)
       event.system.push({ type: "text", text: memory })
     })
@@ -392,6 +417,7 @@ export default Plugin.define({
         if (!sessionID) continue
 
         try {
+          const directory = await getSessionDirectory(sessionID)
           const context = await ctx.session.context({ sessionID })
           await writeJournal(
             directory,
