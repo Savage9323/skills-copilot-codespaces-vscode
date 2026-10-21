@@ -111,7 +111,7 @@ ChatGPT account memory is not assumed to be directly readable by OpenCode/Ollama
 
 To transfer useful ChatGPT context:
 1. Ask ChatGPT for a structured memory handoff using `memory/HANDOFF_TEMPLATE.md`.
-2. Import it with `scripts/memory-import.sh chatgpt <project-slug>`.
+2. From the **central skills repository root** run `bash scripts/memory-import.sh chatgpt <project-slug>` with the handoff on standard input. On SavageDev the script is at `~/src/savage-agent-skills/scripts/memory-import.sh`; it is **not** located inside this skill directory.
 3. Consolidate it before promotion.
 
 Do not treat a ChatGPT handoff as verified merely because it came from ChatGPT.

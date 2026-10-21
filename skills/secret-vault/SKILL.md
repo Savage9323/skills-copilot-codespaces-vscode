@@ -74,7 +74,7 @@ For unattended automation, a bootstrap credential is still required. Protect it 
 
 ## Bitwarden
 
-Routine agent work should use `scripts/vault-run.sh`, not direct `bws secret get`.
+Routine authorized agent work should use the **central skills repository** script `~/src/savage-agent-skills/scripts/vault-run.sh` (or `bash scripts/vault-run.sh` after `cd ~/src/savage-agent-skills`), not a nonexistent relative script inside this skill directory, and not direct `bws secret get`. Never print injected credentials.
 
 The Bitwarden machine account should normally have read-only access to only the project(s) needed by the local agent.
 
