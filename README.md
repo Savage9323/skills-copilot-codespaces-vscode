@@ -31,15 +31,15 @@ Central reusable Agent Skills, shared memory, and capability-routing library for
 
 ## Shared memory
 
-The installer links:
+**Current runtime canonical memory** is at ~/.savagedev/memory/, with
+global/ and projects/<slug>/ trees read by the installed V2 plugin.
 
-```text
-~/.config/opencode/memory/
-```
+The older installer still links ~/.config/opencode/memory/ to this repository's
+memory/ directory. Those files are curated legacy/historical context and
+candidate imports, NOT the current runtime canonical source of truth. Do not
+overwrite either store or migrate claims without fresh verification.
 
-to this repository's `memory/` directory.
-
-Memory contains:
+The repository's historical memory library contains:
 - portfolio orientation
 - local toolchain state
 - shared resource policy
@@ -54,12 +54,12 @@ Live repository, runtime, database, and provider state always outrank memory.
 
 The installed `savage-auto-memory` OpenCode V2 global plugin automatically:
 
-- injects canonical portfolio/toolchain/resource/project memory into each model request
+- injects the canonical global/project files from ~/.savagedev/memory/ into model context on the currently installed plugin
 - preserves canonical memory during OpenCode compaction
 - captures the exact user prompt in OpenCode V2's prompt-admission hook before durable session admission\n- journals the assembled model-dispatch context as a secondary capture path, independently of session-export persistence
 - supplements the journal on `session.idle` when OpenCode session context is available
 - injects a bounded amount of current/recent same-project conversation memory into later turns and new sessions
-- flags pending project memory for automatic reconciliation
+- leaves memory promotion to a separate, evidence-gated lifecycle workflow
 - blocks direct reads of common plaintext secret/private-key files
 
 Recent-conversation memory and candidate session memory remain context/evidence, not canonical truth. The private journal is intentionally independent of OpenCode's SQLite/export path so continuity can survive an OpenCode session-persistence failure. Promotion still follows the authority rules in `memory-orchestrator`.
@@ -77,6 +77,15 @@ Automatic recent-conversation recollections are stored privately under `~/.local
 ```bash
 bash scripts/memory-recent.sh student-benefits-intelligence
 ```
+
+## M2 private automatic candidate lifecycle
+
+The additive scanner is documented in memory/M2_LIFECYCLE.md. Run the
+installed user-level daily scanner via savagedev-memory-candidates.timer.
+It never directly promotes raw conversation claims. It uses a private
+candidate store, claim deduplication, conflict detection, stale-claim
+aging, and two separately attested steps for verification/promotion.
+The Python tests are included in the memory doctor.
 
 ## Unified AI memory workflow
 

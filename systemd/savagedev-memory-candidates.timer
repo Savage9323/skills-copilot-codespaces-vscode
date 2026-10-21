@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily local SavageDev memory-candidate scan
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=30m
+Unit=savagedev-memory-candidates.service
+
+[Install]
+WantedBy=timers.target

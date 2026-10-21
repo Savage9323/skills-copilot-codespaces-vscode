@@ -1,0 +1,10 @@
+[Unit]
+Description=SavageDev M2 private memory-candidate scan
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/lib/savagedev/memory-lifecycle-scan-all.sh
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0077

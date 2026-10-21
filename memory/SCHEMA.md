@@ -1,6 +1,15 @@
 # Shared Memory Schema
 
-This repository uses Markdown for canonical human-readable memory and sanitized raw exports for evidence.
+This repository contains curated/historical Markdown memory and sanitized exports.
+The live OpenCode plugin now reads canonical global/project Markdown from
+~/.savagedev/memory/, not the older ~/.config/opencode/memory symlink.
+Do not treat this repository's legacy memory/projects/<slug>.md as an
+additional writable authoritative store; reconcile useful entries against
+live state before copying them into the new canonical root.
+
+Automatic M2 candidates are privately staged under
+~/.local/share/savage-agent-memory/candidates/, never directly injected
+as canonical memory. See M2_LIFECYCLE.md.
 
 ## Canonical project memory
 

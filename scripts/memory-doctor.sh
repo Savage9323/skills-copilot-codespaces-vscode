@@ -39,4 +39,13 @@ if [ "$fail" -ne 0 ]; then
   exit 1
 fi
 
+# Additional M2 checks are deterministic, network-free, and use disposable fixtures.
+if command -v python3 >/dev/null 2>&1; then
+  python3 -m unittest discover -s "$ROOT/tests" -p 'test_memory_lifecycle.py' -q
+  echo "PASS: evidence-gated M2 memory lifecycle tests"
+else
+  echo "FAIL: python3 required for M2 memory lifecycle"
+  exit 1
+fi
+
 echo "Memory doctor: PASS"

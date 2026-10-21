@@ -5,8 +5,9 @@ import os from "node:os"
 
 const HOME = os.homedir()
 const MEMORY_ROOT =
+  process.env.SAVAGEDEV_MEMORY_DIR ||
   process.env.OPENCODE_MEMORY_DIR ||
-  path.join(HOME, ".config", "opencode", "memory")
+  path.join(HOME, ".savagedev", "memory")
 const PRIVATE_STATE_ROOT =
   process.env.SAVAGE_MEMORY_STATE_DIR ||
   path.join(HOME, ".local", "share", "savage-agent-memory")
@@ -247,14 +248,36 @@ async function buildMemoryContext(directory, sessionID) {
   const slug = projectSlug(directory)
   const chunks = []
 
-  for (const rel of [
-    "PORTFOLIO.md",
-    "TOOLCHAIN.md",
-    "RESOURCES.md",
-    path.join("projects", slug + ".md"),
-  ]) {
-    const value = await readText(path.join(MEMORY_ROOT, rel))
-    if (value) chunks.push("## " + rel + "\n" + value)
+  const memorySources = [
+    {
+      label: "Global SavageDev Memory",
+      dir: path.join(MEMORY_ROOT, "global"),
+    },
+    {
+      label: `Project Memory: ${slug}`,
+      dir: path.join(MEMORY_ROOT, "projects", slug),
+    },
+  ]
+
+  for (const source of memorySources) {
+    try {
+      const names = (await fs.readdir(source.dir))
+        .filter((name) => name.endsWith(".md"))
+        .sort()
+
+      const parts = []
+
+      for (const name of names) {
+        const value = await readText(path.join(source.dir, name))
+        if (value) {
+          parts.push(`### ${name}\n${value}`)
+        }
+      }
+
+      if (parts.length) {
+        chunks.push(`## ${source.label}\n${parts.join("\n\n")}`)
+      }
+    } catch {}
   }
 
   let canonical = chunks.join("\n\n")
