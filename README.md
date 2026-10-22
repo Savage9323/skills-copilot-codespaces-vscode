@@ -78,6 +78,9 @@ Automatic recent-conversation recollections are stored privately under `~/.local
 bash scripts/memory-recent.sh student-benefits-intelligence
 ```
 
+See memory/M2_LEGACY_RECOVERY_20261022.md for the versioned migration of
+authorized historical journals and verified-before-limit selection fix.
+
 See memory/M2_SECURITY_HARDENING.md for scoped memory boundaries and
 secrets/BWS_BROKER_DESIGN.md for the fail-closed M3 runtime broker.
 

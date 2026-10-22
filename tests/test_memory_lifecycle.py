@@ -289,5 +289,16 @@ class MemoryLifecycleTests(unittest.TestCase):
         m2.expire_and_conflicts(state)
         self.assertEqual(item["status"],"ARCHIVED")
 
+    def test_migrated_v2_journal_only_stages_pending(self):
+        path=self.journal(self.project,"legacy",[{"role":"user","text":"We decided to retain source evidence."}])
+        obj=json.loads(path.read_text())
+        obj["schema_version"]=2
+        obj["status"]="legacy-unverified-reference"
+        obj["legacy_migration"]={"original_sha256":"a"*64}
+        path.write_text(json.dumps(obj))
+        state,report=self.scan()
+        self.assertEqual(report["new_candidates"],1)
+        self.assertEqual(next(iter(state["candidates"].values()))["status"],"PENDING")
+
 if __name__=="__main__":
     unittest.main()

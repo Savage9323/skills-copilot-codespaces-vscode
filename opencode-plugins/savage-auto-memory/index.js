@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs"
 import path from "node:path"
 import os from "node:os"
 import { identifyProject, safeSessionId, sensitive, sanitizeRecollection, untrustedBlock, validateJournal } from "./memory-boundaries.js"
+import { selectRecentJournals } from "./journal-selection.js"
 
 const HOME = os.homedir()
 const MEMORY_ROOT =
@@ -146,6 +147,7 @@ async function readJournal(directory, sessionID) {
 }
 
 async function writeJournal(directory, sessionID, incoming, source) {
+  if (!directory.authorized) return // Restricted onboarding: no shared memory journals.
   safeSessionId(sessionID)
   const snippets = collectText(incoming)
   if (!snippets.length) return
@@ -178,80 +180,40 @@ async function writeJournal(directory, sessionID, incoming, source) {
 }
 
 async function loadRecentConversationMemory(directory, currentSessionID) {
-  const dir = recentDir(directory)
-  let names = []
-
-  try {
-    names = await fs.readdir(dir)
-  } catch {
-    return ""
-  }
-
-  const entries = []
-  for (const name of names.filter((name) => name.endsWith(".json"))) {
-    try {
-      safeSessionId(name.slice(0, -5))
-      const full = path.join(dir, name)
-      const stat = await fs.lstat(full)
-      if (stat.isSymbolicLink() || !stat.isFile()) continue
-      entries.push({
-        full,
-        mtime: stat.mtimeMs,
-        current: name === currentSessionID + ".json",
-      })
-    } catch {}
-  }
-
-  entries.sort((a, b) => {
-    if (a.current !== b.current) return a.current ? -1 : 1
-    return b.mtime - a.mtime
-  })
-
+  if (!directory.authorized) return ""
+  const entries = await selectRecentJournals(
+    directory, currentSessionID,
+    [path.join(PRIVATE_STATE_ROOT, "recent"), path.join(PRIVATE_STATE_ROOT, "recent-v2")],
+    { limit: 4, maxAgeDays: 90 },
+  )
   const chunks = []
-  for (const entry of entries.slice(0, 4)) {
-    try {
-      const data = JSON.parse(await fs.readFile(entry.full, "utf8"))
-      const foundSessionID = safeSessionId(path.basename(entry.full, ".json"))
-      if (!validateJournal(data, directory, foundSessionID)) continue
-      let snippets = data.snippets || []
-
-      // The prompt hook captures the current user prompt before context assembly.
-      // Do not inject that newest prompt back into the system message for the
-      // same dispatch; keep only earlier same-session turns.
-      if (
-        entry.current &&
-        snippets.length > 0 &&
-        snippets[snippets.length - 1]?.role === "user"
-      ) {
-        snippets = snippets.slice(0, -1)
-      }
-
-      const lines = snippets
-        .slice(entry.current ? -24 : -10)
-        .filter(item => ["user", "assistant"].includes(item.role))
-        .map(item => `${item.role}: ${redactString(item.text || "")}`)
-        .filter(Boolean)
-
-      if (!lines.length) continue
-
-      chunks.push(
-        `${entry.current ? "Current-session fallback journal" : "Recent OpenCode session"} ${foundSessionID} (${data.captured_at || "unknown time"}):\n` +
-          lines.join("\n"),
-      )
-    } catch {}
+  for (const entry of entries) {
+    const { data, current, id } = entry
+    let snippets = data.snippets
+    // Suppress the most recent prompt from the current model dispatch.
+    if (current && snippets.at(-1)?.role === "user") snippets = snippets.slice(0, -1)
+    const lines = snippets.slice(current ? -24 : -10)
+      .map(item => `${item.role}: ${redactString(item.text || "")}`)
+    if (!lines.length) continue
+    const label = data.status === "legacy-unverified-reference"
+      ? "Migrated legacy recollection (unverified)" : (current
+      ? "Current-session journal" : "Recent OpenCode session")
+    chunks.push(`${label} ${id} (${data.captured_at}):\n` + lines.join("\n"))
   }
-
-  let text = chunks.join("\n\n")
+  const text = chunks.join("\n\n")
   if (text.length > MAX_RECENT_CHARS) {
-    text =
-      text.slice(0, MAX_RECENT_CHARS) +
-      "\n[RECENT CONVERSATION MEMORY TRUNCATED]"
+    return text.slice(0, MAX_RECENT_CHARS) + "\n[RECENT CONVERSATION MEMORY TRUNCATED]"
   }
   return text
 }
 
 async function buildMemoryContext(directory, sessionID) {
   safeSessionId(sessionID)
+  if (!directory.authorized) {
+    return "# Restricted unregistered workspace\n" +
+      "No shared global memory, project memory or previous conversation journals are available. " +
+      "Ask the human owner to register the verified workspace root before accessing project memory."
+  }
   const slug = projectSlug(directory)
   const chunks = []
 

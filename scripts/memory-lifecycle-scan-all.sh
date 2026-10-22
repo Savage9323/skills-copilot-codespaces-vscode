@@ -15,9 +15,12 @@ if [[ ! -d "$JOURNAL_ROOT" ]]; then
   exit 0
 fi
 shopt -s nullglob
-for dir in "$JOURNAL_ROOT"/*; do
-  [[ -d "$dir" && ! -L "$dir" ]] || continue
-  project="$(basename "$dir")"
-  [[ "$project" =~ ^[a-z0-9][a-z0-9._-]{0,63}$ && "$project" != *..* ]] || continue
-  python3 "$SCANNER" scan --project "$project" --recent-root "$JOURNAL_ROOT" --state-root "$SOURCE_ROOT" --identity-map "${SAVAGE_PROJECT_REGISTRY:-$HOME/.savagedev/project-identities.json}" --write
+for source in "$JOURNAL_ROOT" "$SOURCE_ROOT/recent-v2"; do
+  [[ -d "$source" && ! -L "$source" ]] || continue
+  for dir in "$source"/*; do
+    [[ -d "$dir" && ! -L "$dir" ]] || continue
+    project="$(basename "$dir")"
+    [[ "$project" =~ ^[a-z0-9][a-z0-9._-]{0,63}$ && "$project" != *..* ]] || continue
+    python3 "$SCANNER" scan --project "$project" --recent-root "$source" --state-root "$SOURCE_ROOT" --identity-map "${SAVAGE_PROJECT_REGISTRY:-$HOME/.savagedev/project-identities.json}" --write
+  done
 done
