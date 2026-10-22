@@ -17,30 +17,34 @@ The shared memory system is model-independent. Models contribute candidate memor
 
 ## Memory layers
 
-### 1. Inbox
+### 1. Source and inbox
 
-`~/.config/opencode/memory/inbox/`
+Historical imports: ~/src/savage-agent-skills/memory/inbox/
+Private recent journaling:
+~/.local/share/savage-agent-memory/recent/<authorized-project-id>/
+Private evidence-gated candidates:
+~/.local/share/savage-agent-memory/candidates/<authorized-project-id>.json
 
-Raw or sanitized candidate material from:
-- OpenCode session exports
-- ChatGPT handoffs
-- other agents/models
-- manual notes
+These sources contain untrusted recollection and must not be injected as
+authoritative instructions or promoted based solely on AI assertions.
+New journals require safe session IDs and exact workspace-root provenance.
 
-Inbox items are evidence, not truth.
+### 2. Canonical runtime memory
 
-### 2. Canonical memory
+~/.savagedev/memory/global/AGENT_RULES.md
+~/.savagedev/memory/projects/<authorized-project-id>/
 
-`~/.config/opencode/memory/projects/<project>.md`
+Authorized project identifiers come from the owner-only
+~/.savagedev/project-identities.json registry or a resolved-root hash.
+Legacy ~/.config/opencode/memory is historical and not the runtime source
+of truth. Never automatically merge conflicting stores.
 
-Contains only durable, useful, non-secret facts that survived reconciliation.
+### 3. History and conflicts
 
-### 3. History/conflicts
-
-`~/.config/opencode/memory/history/`
-`~/.config/opencode/memory/conflicts/`
-
-History records promotions. Conflicts preserve unresolved contradictory claims until verified.
+Historical merge records stay in the central repository memory/history/
+and memory/conflicts/ directories. The automatic lifecycle also retains
+private candidate metadata for superseded, rejected, archived, and
+stale claims without deleting evidence.
 
 ## Source authority
 
@@ -90,7 +94,9 @@ Never store:
    - REJECTED
 5. Verify volatile facts live when practical.
 6. Promote only durable facts with adequate evidence.
-7. Put unresolved contradictions in `memory/conflicts/`.
+7. Preserve contradictions in private candidate conflict state and the
+   historical memory/conflicts/ log; do not automatically elevate either
+   side to a verified claim.
 8. Update `last verified` dates for promoted volatile facts.
 9. Append a short entry to `memory/history/MERGELOG.md`.
 10. Never delete raw inbox evidence merely because it disagrees with canonical memory.
