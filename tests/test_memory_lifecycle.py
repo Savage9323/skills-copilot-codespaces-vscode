@@ -21,12 +21,21 @@ class MemoryLifecycleTests(unittest.TestCase):
         self.state_root = self.base / "private"
         self.canonical = self.base / "canonical"
         self.project = "fixture-project"
+        self.identity_map = self.base / "identities.json"
+        self.project_roots = {}
 
     def journal(self, project, name, snippets, captured=None):
         root = self.recent / project
         root.mkdir(parents=True, exist_ok=True)
+        workspace=self.base/"repos"/project
+        (workspace/".git").mkdir(parents=True, exist_ok=True)
+        self.project_roots[project] = str(workspace.resolve())
+        self.identity_map.write_text(json.dumps({"projects":[
+            {"id":k,"root":v} for k,v in self.project_roots.items()
+        ]}))
+        os.chmod(self.identity_map,0o600)
         data = {
-            "project": project, "source": "fixture",
+            "project": project, "workspace_root": str(workspace.resolve()), "source": "fixture",
             "session_id": name, "captured_at": captured or m2.iso(m2.utcnow()),
             "snippets": snippets,
         }
@@ -36,7 +45,7 @@ class MemoryLifecycleTests(unittest.TestCase):
     def scan(self, project=None, days=30):
         project = project or self.project
         state = m2.load_state(self.state_root, project)
-        result = m2.scan(state, self.recent, project, days=days)
+        result = m2.scan(state, self.recent, project, days=days, registry=self.identity_map)
         return state, result
 
     def test_extraction_requires_user_and_pattern(self):
@@ -192,14 +201,14 @@ class MemoryLifecycleTests(unittest.TestCase):
         proof=self.base/"proof";proof.write_text("test proof")
         m2.review(state,item["id"],"VERIFIED_REPO","reviewer-1",proof)
         self.journal(self.project,"after",[{"role":"user","text":"Default model: Gemma"}])
-        m2.scan(state,self.recent,self.project)
+        m2.scan(state,self.recent,self.project,registry=self.identity_map)
         self.assertEqual(item["status"],"CONFLICT")
 
     def test_runner_isolated_private_candidate_write(self):
         import subprocess
         self.journal(self.project,"run",[{"role":"user","text":"We decided to require human confirmation."}])
         script=SCRIPT.with_name("memory-lifecycle-scan-all.sh")
-        result=subprocess.run(["bash",str(script)],env={**os.environ,"SAVAGE_MEMORY_STATE_DIR":str(self.base)},
+        result=subprocess.run(["bash",str(script)],env={**os.environ, "SAVAGE_MEMORY_STATE_DIR":str(self.base),"SAVAGE_PROJECT_REGISTRY":str(self.identity_map)},
                               text=True,capture_output=True,timeout=8)
         self.assertEqual(result.returncode,0,result.stderr)
         state=m2.load_state(self.base,self.project)
@@ -220,7 +229,8 @@ class MemoryLifecycleTests(unittest.TestCase):
             m2.resolve_conflict(state,winner["id"],[losing["id"]],"human-1",None,"Checked model settings")
         m2.resolve_conflict(state,winner["id"],[losing["id"]],"human-1",proof,"Checked model settings")
         self.assertEqual(winner["status"],"PENDING")
-        self.assertEqual(losing["status"],"REJECTED")
+        self.assertEqual(losing["status"],"SUPERSEDED")
+        self.assertEqual(losing["superseded_by"],winner["id"])
         self.assertIsNone(winner["verification"])
         m2.expire_and_conflicts(state)
         self.assertEqual(winner["status"],"PENDING")
@@ -240,6 +250,44 @@ class MemoryLifecycleTests(unittest.TestCase):
         proof=self.base/"proof";proof.write_text("evidence")
         with self.assertRaisesRegex(ValueError,"all conflicting siblings"):
             m2.resolve_conflict(state,items[0]["id"],[items[1]["id"]],"person",proof,"Reason for resolution")
+
+    def test_journal_without_provenance_rejected(self):
+        p=self.journal(self.project,"legacy",[{"role":"user","text":"We decided to preserve evidence."}])
+        data=json.loads(p.read_text());data.pop("workspace_root")
+        p.write_text(json.dumps(data))
+        state,res=self.scan()
+        self.assertEqual(res["journals_examined"],0)
+        self.assertEqual(res["total_candidates"],0)
+
+    def test_journal_with_spoofed_workspace_rejected(self):
+        p=self.journal(self.project,"fake",[{"role":"user","text":"We decided to change the review gate."}])
+        data=json.loads(p.read_text());data["workspace_root"]=str(self.base)
+        p.write_text(json.dumps(data))
+        state,res=self.scan()
+        self.assertEqual(res["journals_examined"],0)
+
+    def test_session_filename_traversal_or_mismatch_rejected(self):
+        p=self.journal(self.project,"good",[{"role":"user","text":"We decided to check file identity."}])
+        data=json.loads(p.read_text());data["session_id"]="../unsafe"
+        p.write_text(json.dumps(data))
+        state,res=self.scan()
+        self.assertEqual(res["journals_examined"],0)
+
+    def test_opaque_unrecognized_secret_dropped(self):
+        p=self.journal(self.project,"token",[{"role":"user","text":"We decided on Xps8_QP43K9kLAJzkX9Q00p3W8F03Rdm18."},
+                                                    {"role":"user","text":"We decided to keep source validation."}])
+        state,res=self.scan()
+        self.assertEqual(res["total_candidates"],1)
+
+    def test_archival_keeps_private_history(self):
+        self.journal(self.project,"archive",[{"role":"user","text":"We decided to retain the source record."}])
+        state,_=self.scan()
+        item=next(iter(state["candidates"].values()))
+        m2.archive_candidate(state,item["id"],"human-reviewer","This record is obsolete")
+        self.assertEqual(item["status"],"ARCHIVED")
+        self.assertIn(item["id"],state["candidates"])
+        m2.expire_and_conflicts(state)
+        self.assertEqual(item["status"],"ARCHIVED")
 
 if __name__=="__main__":
     unittest.main()

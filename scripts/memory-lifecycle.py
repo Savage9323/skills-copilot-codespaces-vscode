@@ -44,7 +44,44 @@ KINDS = (
     ("fact", re.compile(r"^(?:[a-z0-9][a-z0-9 /._-]{2,42})\s*:\s*\S", re.I)),
 )
 EXCLUDE_SUBJECTS = {"decision", "blocker", "next step", "next", "completed", "error", "failure", "status"}
-ALLOWED_STATES = {"PENDING", "CONFLICT", "STALE_RECHECK", "VERIFIED_REPO", "VERIFIED_LIVE", "PROMOTED", "REJECTED"}
+ALLOWED_STATES = {"PENDING", "CONFLICT", "STALE_RECHECK", "VERIFIED_REPO", "VERIFIED_LIVE", "PROMOTED", "REJECTED", "SUPERSEDED", "ARCHIVED"}
+
+SESSION_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
+OPAQUE = re.compile(r"(?<![a-zA-Z0-9])([A-Za-z0-9+/_=-]{28,})(?![a-zA-Z0-9])")
+
+def opaque_secret(text):
+    for m in OPAQUE.finditer(text):
+        token=m.group(1)
+        classes=sum(bool(re.search(pattern,token)) for pattern in (r"[a-z]",r"[A-Z]",r"[0-9]",r"[-_+=/]"))
+        if classes>=3 and len(set(token))>=12:
+            return True
+    return False
+
+def authorized_identity(project, workspace_root, registry):
+    """Recompute the same resolved repo-root identity as the V2 plugin."""
+    if not isinstance(workspace_root,str):
+        return False
+    try:
+        real=Path(workspace_root).resolve(strict=True)
+        if not real.is_dir() or str(real)!=workspace_root:
+            return False
+        root=real
+        while root.parent!=root and not (root/".git").exists():
+            root=root.parent
+        reg=Path(registry).expanduser()
+        if reg.is_file():
+            if reg.is_symlink() or (reg.stat().st_mode & 0o077):
+                raise ValueError("unsafe project registry")
+            data=json.loads(reg.read_text())
+            for item in data.get("projects",[]):
+                if not ensure_project(item["id"]):
+                    return False
+                if Path(item["root"]).resolve(strict=True)==root:
+                    return item["id"]==project
+        label=re.sub(r"[^a-z0-9._-]+","-",root.name.lower()).strip("-")[:40] or "workspace"
+        return project==label+"-"+digest(str(root))[:16]
+    except (OSError,ValueError,KeyError,TypeError):
+        return False
 
 def utcnow():
     return datetime.now(timezone.utc)
@@ -70,7 +107,7 @@ def clean_claim(text):
     text = re.sub(r"\s+", " ", text).strip().strip("-*#> ")
     if not text or len(text) > 280 or len(text) < 11:
         return None
-    if SENSITIVE.search(text) or PII.search(text) or INJECTION.search(text):
+    if SENSITIVE.search(text) or PII.search(text) or INJECTION.search(text) or opaque_secret(text):
         return None
     if any(ord(c) < 32 for c in text):
         return None
@@ -129,14 +166,14 @@ def expire_and_conflicts(state, now=None, days=30):
     items = state["candidates"]
     buckets = defaultdict(list)
     for c in items.values():
-        if c.get("topic") and c["status"] not in {"REJECTED", "PROMOTED"}:
+        if c.get("topic") and c["status"] not in {"REJECTED", "PROMOTED", "SUPERSEDED", "ARCHIVED"}:
             buckets[c["topic"]].append(c)
     conflicted = set()
     for group in buckets.values():
         if len({c["claim"].split(":", 1)[-1].strip().casefold() for c in group}) > 1:
             conflicted.update(c["id"] for c in group)
     for c in items.values():
-        if c["status"] in {"PROMOTED", "REJECTED"}:
+        if c["status"] in {"PROMOTED", "REJECTED", "SUPERSEDED", "ARCHIVED"}:
             continue
         if c["id"] in conflicted:
             c["status"] = "CONFLICT"
@@ -152,9 +189,10 @@ def expire_and_conflicts(state, now=None, days=30):
                 c["status"] = "STALE_RECHECK"
     return state
 
-def scan(state, journal_root, project, days=30, now=None):
+def scan(state, journal_root, project, days=30, now=None, registry=None):
     project = ensure_project(project)
     now = now or utcnow()
+    registry = registry or Path.home()/".savagedev/project-identities.json"
     source_dir = Path(journal_root).expanduser() / project
     examined = 0
     new = 0
@@ -167,7 +205,12 @@ def scan(state, journal_root, project, days=30, now=None):
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        if data.get("project") != project or not isinstance(data.get("snippets"), list):
+        session_id = data.get("session_id")
+        if (data.get("project") != project
+            or not isinstance(data.get("snippets"), list)
+            or not isinstance(session_id,str) or not SESSION_ID.fullmatch(session_id)
+            or path.name != session_id+".json"
+            or not authorized_identity(project,data.get("workspace_root"),registry)):
             continue
         examined += 1
         seen_at = parse_time(data.get("captured_at")) or datetime.fromtimestamp(path.stat().st_mtime, timezone.utc)
@@ -189,7 +232,9 @@ def scan(state, journal_root, project, days=30, now=None):
                         "id": unique, "project": project, "kind": kind, "claim": claim,
                         "topic": topic(claim, kind), "first_seen": iso(seen_at),
                         "last_seen": iso(seen_at), "status": "PENDING",
-                        "sources": [], "verification": None, "promotion": None
+                        "sources": [], "verification": None, "promotion": None,
+                        "sensitivity": "PENDING_REVIEW", "freshness_window_days": days,
+                        "superseded_by": None, "archived_at": None
                     }
                     new += 1
                 item = items[unique]
@@ -267,13 +312,25 @@ def resolve_conflict(state, preferred_id, superseded_ids, reviewer, evidence, re
     }
     for claim_id in superseded_ids:
         other = state["candidates"][claim_id]
-        other["status"] = "REJECTED"
+        other["status"] = "SUPERSEDED"
+        other["superseded_by"] = preferred_id
         other["conflict_resolution"] = check
     winner["status"] = "PENDING"
     winner["verification"] = None
     winner["conflict_resolution"] = check
     return winner
 
+
+def archive_candidate(state, claim_id, reviewer, reason):
+    item=get_item(state, claim_id)
+    if item["status"] == "PROMOTED":
+        raise ValueError("promoted claim needs explicit supersession, not archive")
+    if not reviewer or not reason or len(reason.strip())<8:
+        raise ValueError("archiving requires reviewer and explanatory reason")
+    item["status"]="ARCHIVED"
+    item["archived_at"]=iso(utcnow())
+    item["archive_record"]={"reviewer":reviewer,"reason":reason[:200]}
+    return item
 
 def promote(state, claim_id, approver, canonical_root):
     item = get_item(state, claim_id)
@@ -318,10 +375,11 @@ def promote(state, claim_id, approver, canonical_root):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Private, evidence-gated SavageDev memory candidate workflow")
-    parser.add_argument("action", choices=["scan", "status", "review", "resolve", "promote"])
+    parser.add_argument("action", choices=["scan", "status", "review", "resolve", "promote", "archive"])
     parser.add_argument("--project", required=True)
     parser.add_argument("--recent-root", default="~/.local/share/savage-agent-memory/recent")
     parser.add_argument("--state-root", default="~/.local/share/savage-agent-memory")
+    parser.add_argument("--identity-map", default="~/.savagedev/project-identities.json")
     parser.add_argument("--canonical-root", default="~/.savagedev/memory")
     parser.add_argument("--days", type=int, default=30)
     parser.add_argument("--write", action="store_true", help="Required to persist newly scanned candidates")
@@ -339,7 +397,7 @@ def main(argv=None):
         if args.days < 1 or args.days > 3650:
             raise ValueError("days must be 1..3650")
         if args.action == "scan":
-            result = scan(state, args.recent_root, project, days=args.days)
+            result = scan(state, args.recent_root, project, days=args.days, registry=args.identity_map)
             if args.write:
                 save_state(args.state_root, project, state)
             result["written"] = args.write
@@ -352,6 +410,12 @@ def main(argv=None):
             item = review(state, args.id, args.outcome, args.reviewer, args.evidence, args.reason)
             save_state(args.state_root, project, state)
             result = {"id": item["id"], "status": item["status"]}
+        elif args.action == "archive":
+            if not args.id or not args.reviewer or not args.reason:
+                raise ValueError("archiving requires --id, --reviewer and --reason")
+            item=archive_candidate(state,args.id,args.reviewer,args.reason)
+            save_state(args.state_root,project,state)
+            result={"id":item["id"],"status":item["status"]}
         elif args.action == "resolve":
             if not args.id or not args.reviewer or not args.reason or not args.supersede:
                 raise ValueError("resolution requires --id, --reviewer, --reason and --supersede")

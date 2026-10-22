@@ -74,7 +74,16 @@ For unattended automation, a bootstrap credential is still required. Protect it 
 
 ## Bitwarden
 
-Routine agent work should use `scripts/vault-run.sh`, not direct `bws secret get`.
+Routine agent work must use the fail-closed central vault broker:
+`~/src/savage-agent-skills/scripts/vault-run.sh <approved-project-slug> <preapproved-action>`.
+No command or arguments may be supplied by an agent at invocation time.
+An owner-maintained private 0600 allowlist at
+`~/.config/savage-agent/vault-consumers.json` pins each trusted executable
+by absolute path and SHA-256; no action is authorized until explicitly enrolled.
+The broker replaces the caller with BWS runtime injection, rather than exposing
+resolved secret values to AI context or logs. Do not call `bws secret get` from
+a model-facing tool. Live authentication, service-account scope and OS-user
+isolation must be verified separately before accepting this capability.
 
 The Bitwarden machine account should normally have read-only access to only the project(s) needed by the local agent.
 

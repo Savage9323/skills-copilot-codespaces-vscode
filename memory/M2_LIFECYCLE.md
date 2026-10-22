@@ -9,6 +9,8 @@ replace context injection or write to canonical memory.
 - Runtime canonical truth: ~/.savagedev/memory/global/ and
   ~/.savagedev/memory/projects/<project>/.
 - Private recent context: ~/.local/share/savage-agent-memory/recent/<project>/*.json.
+  Project IDs now derive from authorized repository roots; old basename-only
+  journals are retained but cannot be injected without provenance.
 - New untrusted candidates: ~/.local/share/savage-agent-memory/candidates/<project>.json.
 - Legacy ~/.config/opencode/memory links to the central repo's historical
   memory/ tree. It is not a second writable runtime canonical store. Validate
