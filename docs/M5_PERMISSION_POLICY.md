@@ -46,3 +46,20 @@ rather than nonexistent skill-local scripts.
 
 Pending: all-agent negative tests, OS-level isolation, live BWS injection,
 full independent platform acceptance.
+
+## 2026-10-21 follow-up hardening
+
+Updated effective Review, Security, Watchdog, Cleanup Planner and Lifecycle
+Auditor rules with final explicit read, glob/grep secret-path denials and
+external-directory denial. Global Build policy also places secret-file
+denials after its general allow rules. No agent or model was restarted; config
+reload succeeded after restoring empty synthetic workspace paths referenced
+by the existing OpenCode service.
+
+Verify:
+python3 scripts/verify-agent-denials.py
+
+This proves ordered configuration decisions, not arbitrary system-call denial.
+A model-driven native skill-load attempt timed out after 125 seconds without
+tool events and must be classified INCOMPLETE. Do not assert a skill-load pass
+or treat nonzero/fake events as successful tool execution.

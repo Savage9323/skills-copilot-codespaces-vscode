@@ -11,8 +11,11 @@ def decide(agent,action,resource):
 def main():
     failures=[]
     try:
-        r=subprocess.run(["opencode","debug","agents"],capture_output=True,text=True,check=True,timeout=20)
+        r=subprocess.run(["opencode","debug","agents"],cwd=HOME,capture_output=True,text=True,check=True,timeout=20)
         agents={a["name"]:a for a in json.loads(r.stdout) if isinstance(a,dict) and a.get("name")}
+        required_agents={"Build","review","security","watchdog","cleanup-planner","lifecycle-auditor"}
+        if not required_agents.issubset(agents):
+            failures.append("AGENT_REGISTRY_INCOMPLETE:"+",".join(sorted(required_agents-set(agents))))
         checks=[
             ("review","edit",".ai-memory/REVIEW.md","allow"),
             ("security","edit",".ai-memory/REVIEW.md","deny"),
@@ -25,8 +28,13 @@ def main():
             ("review","read",".env","deny"),
             ("security","read",".env","deny"),
             ("watchdog","read",".env","deny"),
+            ("cleanup-planner","read",".env.example","deny"),
+            ("lifecycle-auditor","read","/tmp/private.env","deny"),
+            ("Build","read",".env.example","deny"),
+            ("review","external_directory","*","deny"),
         ]
         for name,action,resource,want in checks:
+            if name not in agents: continue
             got=decide(agents[name],action,resource)
             if got!=want: failures.append(f"{name}:{action}:{resource}:expected-{want}:got-{got}")
         global_cfg=json.loads((HOME/".config/opencode/opencode.json").read_text())
